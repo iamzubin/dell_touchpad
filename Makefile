@@ -4,8 +4,8 @@ TARGET = main
 
 all: $(TARGET)
 
-$(TARGET): $(TARGET).c
-	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
+$(TARGET): src/$(TARGET).c
+	$(CC) $(CFLAGS) -o $(TARGET) src/$(TARGET).c
 
 clean:
 	$(RM) $(TARGET)
