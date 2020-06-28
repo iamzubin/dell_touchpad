@@ -17,29 +17,49 @@
 
 static int open_restricted(const char *path, int flags, void *user_data)
 {
-		int fd = open(path, flags);
-		return fd < 0 ? -errno : fd;
+	int fd = open(path, flags);
+	return fd < 0 ? -errno : fd;
 }
 
 static void close_restricted(int fd, void *user_data)
 {
-		close(fd);
+	close(fd);
 }
 
 const static struct libinput_interface interface = {
-		.open_restricted = open_restricted,
-		.close_restricted = close_restricted,
+	.open_restricted = open_restricted,
+	.close_restricted = close_restricted,
 };
 
+// listen for events
+void device_events(struct libinput_device *device){
 
-int main(void) {
+	char buffer[EVENT_BUF_LEN];
+	struct udev_device *udev_dev = NULL;
+
+	udev_dev = libinput_device_get_udev_device(device);
+	const char *sys_path = udev_device_get_devnode(udev_dev);
+	printf("path: %s \n", sys_path);
+	int fd = inotify_init();
+	inotify_add_watch(fd, sys_path, IN_ALL_EVENTS);
+	int count = 0;
+	for(;;){
+		count++;
+		read(fd, buffer, EVENT_BUF_LEN);
+		printf("something, happened!!! %d\n", count);
+	}
+}
+
+
+// Find Device
+void get_device(){
+
 	struct libinput *li;
 	struct libinput_event *event;
 	struct udev *udev = udev_new();
 	struct udev_device *udev_dev = NULL;
 	struct libinput_device *device;
 
-	char buffer[EVENT_BUF_LEN];
 
 	li = libinput_udev_create_context(&interface, NULL, udev);
 	libinput_udev_assign_seat(li, "seat0");
@@ -50,31 +70,18 @@ int main(void) {
 		device = libinput_event_get_device(event);
 
 		const char *name = libinput_device_get_name(device);
-		printf("Name: %s \n", name);
 		if (strcmp(name, device_name) == 0){
-			printf("==== Device Found ====\n");
-			udev_dev = libinput_device_get_udev_device(device);
-			const char *sys_path = udev_device_get_devnode(udev_dev);
-			printf("path: %s \n", sys_path);
-			int fd = inotify_init();
-			inotify_add_watch(fd, sys_path, IN_ALL_EVENTS);
-			int count=0;
-			for(;;){
-				int n = read(fd, buffer, EVENT_BUF_LEN);
-				count++;
-				char* p = buffer;
-				// while(p < buffer + n){
-					printf("SomeThing Happened %d \n", count);
-				//}
-				
-			}
-
+			printf("Found the device!!!\n");
+			device_events(device);
+			break;
 		}
-		
+		libinput_event_destroy(event);
+		libinput_dispatch(li);
 	}
-	libinput_event_destroy(event);
-	libinput_dispatch(li);
-	
 	libinput_unref(li);
-	return 1;
+}
+
+int main(void) {
+	get_device();
+	return 0;
 }
