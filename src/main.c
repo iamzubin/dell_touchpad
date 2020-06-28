@@ -44,29 +44,37 @@ int main(void) {
 	li = libinput_udev_create_context(&interface, NULL, udev);
 	libinput_udev_assign_seat(li, "seat0");
 	libinput_dispatch(li);
-	int fd = libinput_get_fd(li);
 
 	while ((event = libinput_get_event(li)) != NULL) {
 
 		device = libinput_event_get_device(event);
 
 		const char *name = libinput_device_get_name(device);
-		if (strcmp(device_name,name) == 0)
-		{
+		printf("Name: %s \n", name);
+		if (strcmp(name, device_name) == 0){
+			printf("==== Device Found ====\n");
 			udev_dev = libinput_device_get_udev_device(device);
-			const char *path = udev_device_get_devnode(udev_dev);
-			printf("%s", path);
-			int file;
-			file = inotify_add_watch(fd, path,IN_ACCESS );
-			int length = read(fd,buffer ,EVENT_BUF_LEN );
-			printf("%d", length);
-			while ((length = read(3, buffer, BUFSIZ)) > 0)
-				write(1, buffer, length);
-		}
-		libinput_event_destroy(event);
-		libinput_dispatch(li);
-	}
+			const char *sys_path = udev_device_get_devnode(udev_dev);
+			printf("path: %s \n", sys_path);
+			int fd = inotify_init();
+			inotify_add_watch(fd, sys_path, IN_ALL_EVENTS);
+			int count=0;
+			for(;;){
+				int n = read(fd, buffer, EVENT_BUF_LEN);
+				count++;
+				char* p = buffer;
+				// while(p < buffer + n){
+					printf("SomeThing Happened %d \n", count);
+				//}
+				
+			}
 
+		}
+		
+	}
+	libinput_event_destroy(event);
+	libinput_dispatch(li);
+	
 	libinput_unref(li);
 	return 1;
 }
